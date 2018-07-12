@@ -7,18 +7,8 @@ import (
 	"time"
 )
 
-type Option struct {
-	DbId      int
-	MaxIdle   int
-	MaxActive int
-	Address   string
-}
-
-type RWPool struct {
-	wPool    *redis.Pool
-	rPools   []*redis.Pool
-}
-
+// NOTE!!!! when use this, must close conn, mannul
+// NewRedigoPool base pool, return redigo pool
 func NewRedigoPool(addr string, maxIdle, maxActive, db int) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     maxIdle,
@@ -43,16 +33,15 @@ func NewRedigoPool(addr string, maxIdle, maxActive, db int) *redis.Pool {
 	}
 }
 
-//
-func NewPool(address string, maxIdle, maxActive, db int) *RWPool {
-	wpool := NewRedigoPool(address, maxIdle, maxActive, db)
-	rp := &RWPool{wPool: wpool}
-	rp.getReadConnection = rp.getWriteConnection
-	return rp
+type Option struct {
+	DbId      int
+	MaxIdle   int
+	MaxActive int
+	Address   string
 }
 
 //
-func NewRWPool(woption Option, roptions []Option) *RWPool {
+func NewRWPool(woption Option, roptions []Option) *mPool {
 	rpools := make([]*redis.Pool, len(roptions))
 	for idx, roption := range roptions {
 		rpools[idx] = NewRedigoPool(roption.Address, roption.MaxIdle, roption.MaxActive, roption.DbId)
@@ -60,22 +49,68 @@ func NewRWPool(woption Option, roptions []Option) *RWPool {
 
 	wpool := NewRedigoPool(woption.Address, woption.MaxIdle, woption.MaxActive, woption.DbId)
 
-	rp := &RWPool{wpool,rpools}
-	go rp.checkSlave()
+	mp := newMPool(&rw{wpool, rpools})
+	go mp.check(0)
 
-	return rp
+	return mp
+}
+
+// NewPool create pool, which auto close conn
+func NewPool(address string, maxIdle, maxActive, db int) *mPool {
+	rp := NewRedigoPool(address, maxIdle, maxActive, db)
+	c := &common{Pool: rp}
+	return newMPool(c)
+}
+
+type common struct {
+	*redis.Pool
+}
+
+func (p *common) getRead(db int) redis.Conn {
+	return p.Get()
+}
+
+func (p *common) getWrite(db int) redis.Conn {
+	return p.Get()
+}
+
+func (p *common) Stat() map[string]interface{} {
+	return map[string]interface{}{"master": p.ActiveCount()}
+}
+
+func (p *common) check(int) {
+	// TODO
+}
+
+type rw struct {
+	wPool  *redis.Pool
+	rPools []*redis.Pool
+}
+
+func (p *rw) getRead(db int) redis.Conn {
+	rpool := p.rPools
+	rp_size := len(rpool)
+	if rp_size == 0 {
+		return p.getWrite(db)
+	}
+
+	return rpool[rand.Int()%rp_size].Get()
+}
+
+func (p *rw) getWrite(db int) redis.Conn {
+	return p.wPool.Get()
 }
 
 //仅检查从库是否健康, 剔除掉线从库
-func (rp *RWPool) checkSlave() {
-	rnum := len(rp.rPools)
+func (p *rw) check(int) {
+	rnum := len(p.rPools)
 	rpool := make([]*redis.Pool, rnum)
-	copy(rpool, rp.rPools)
+	copy(rpool, p.rPools)
 
 	tmp := make([]*redis.Pool, rnum)
 	for {
 		cnt := 0
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		for idx, rp := range rpool {
 			conn := rp.Get()
 			_, err := conn.Do("PING")
@@ -88,14 +123,14 @@ func (rp *RWPool) checkSlave() {
 			conn.Close()
 		}
 
-		if cnt > 0 {  // slice alive slave
-			rp.rPools = tmp[:cnt]
+		if cnt > 0 { // slice alive slave
+			p.rPools = tmp[:cnt]
 		}
 	}
 }
 
-func (rp *RWPool) GetStat() (res map[string]int) {
-	res = make(map[string]int)
+func (rp *rw) Stat() (res map[string]interface{}) {
+	res = make(map[string]interface{})
 	res["master"] = rp.wPool.ActiveCount()
 	for i, p := range rp.rPools {
 		res[fmt.Sprintf("slave_%d", i)] = p.ActiveCount()
@@ -103,22 +138,6 @@ func (rp *RWPool) GetStat() (res map[string]int) {
 
 	return
 }
-
-func (rp *RWPool) getReadConnection(db int) redis.Conn {
-	rpool := rp.rPools
-	rp_size := len(rpool)
-	if rp_size == 0 {
-		return rp.getWriteConnection(db)
-	}
-
-	return rpool[rand.Int()%rp_size].Get()
-}
-
-//BDPool[db] = newPool(rp.allRPools[selected].Address, rp.maxActiveConn, db)
-func (rp *RWPool) getWriteConnection(db int) redis.Conn {
-	return rp.wPool.Get()
-}
-
 
 //
 //type errorConnection struct{ err error }

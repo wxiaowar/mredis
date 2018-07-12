@@ -4,8 +4,8 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-func (rp *RWPool) Publish(db int, channel, value interface{}) error {
-	conn := rp.getWriteConnection(db)
+func (rp *mPool) Publish(db int, channel, value interface{}) error {
+	conn := rp.getWrite(db)
 	defer conn.Close()
 	_, err := conn.Do("PUBLISH", channel, value)
 	if err != nil {
@@ -15,7 +15,7 @@ func (rp *RWPool) Publish(db int, channel, value interface{}) error {
 }
 
 //must close manual
-func (rp *RWPool) GetPubSubConn(db int) (*redigo.PubSubConn, error) {
-	conn := rp.getReadConnection(db)
+func (rp *mPool) GetPubSubConn(db int) (*redigo.PubSubConn, error) {
+	conn := rp.getRead(db)
 	return &redigo.PubSubConn{conn}, nil
 }

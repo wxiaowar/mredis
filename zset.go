@@ -12,12 +12,12 @@ import (
 	db: 数据库表ID
 	args: 必须是<key,score,id>的列表
 */
-func (rp *RWPool) ZAdd(db int, args ...interface{}) error {
+func (rp *mPool) ZAdd(db int, args ...interface{}) error {
 	if len(args)%3 != 0 {
 		return errors.New("invalid arguments number")
 	}
 
-	fcon := rp.getWriteConnection(db)
+	fcon := rp.getWrite(db)
 	defer fcon.Close()
 	if e := fcon.Send("MULTI"); e != nil {
 		return e
@@ -42,11 +42,11 @@ func (rp *RWPool) ZAdd(db int, args ...interface{}) error {
 	opt: 可选参数，必须是NX|XX|CH|INCR|""中的一个
 	args: 必须是<key,score,id>的列表
 */
-func (rp *RWPool) ZAddOpt(db int, opt string, args ...interface{}) error {
+func (rp *mPool) ZAddOpt(db int, opt string, args ...interface{}) error {
 	if len(args)%3 != 0 {
 		return errors.New("invalid arguments number")
 	}
-	fcon := rp.getWriteConnection(db)
+	fcon := rp.getWrite(db)
 	defer fcon.Close()
 	if e := fcon.Send("MULTI"); e != nil {
 		return e
@@ -63,8 +63,8 @@ func (rp *RWPool) ZAddOpt(db int, opt string, args ...interface{}) error {
 	return nil
 }
 
-func (rp *RWPool) ZCount(db int, key interface{}, min, max float64) (count uint32, e error) {
-	scon := rp.getReadConnection(db)
+func (rp *mPool) ZCount(db int, key interface{}, min, max float64) (count uint32, e error) {
+	scon := rp.getRead(db)
 	defer scon.Close()
 	n, e := redigo.Uint64(scon.Do("ZCOUNT", key, min, max))
 	if e != nil {
@@ -73,31 +73,31 @@ func (rp *RWPool) ZCount(db int, key interface{}, min, max float64) (count uint3
 	return uint32(n), nil
 }
 
-func (rp *RWPool) ZCard(db int, key interface{}) (num uint64, e error) {
-	scon := rp.getReadConnection(db)
+func (rp *mPool) ZCard(db int, key interface{}) (num uint64, e error) {
+	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Uint64(scon.Do("ZCARD", key))
 }
 
 //获取SortedSet的成员排名
-func (rp *RWPool) ZRank(db int, key interface{}, id interface{}, asc bool) (rank int64, e error) {
+func (rp *mPool) ZRank(db int, key interface{}, id interface{}, asc bool) (rank int64, e error) {
 	cmd := "ZRANK"
 	if !asc {
 		cmd = "ZREVRANK"
 	}
-	scon := rp.getReadConnection(db)
+	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Int64(scon.Do(cmd, key, id))
 }
 
-func (rp *RWPool) ZIncrBy(db int, key interface{}, increment interface{}, id interface{}) (score int64, e error) {
-	conn := rp.getWriteConnection(db)
+func (rp *mPool) ZIncrBy(db int, key interface{}, increment interface{}, id interface{}) (score int64, e error) {
+	conn := rp.getWrite(db)
 	defer conn.Close()
 	return redigo.Int64(conn.Do("ZINCRBY", key, increment, id))
 }
 
-func (rp *RWPool) ZScore(db int, key interface{}, item interface{}) (score int64, e error) {
-	conn := rp.getReadConnection(db)
+func (rp *mPool) ZScore(db int, key interface{}, item interface{}) (score int64, e error) {
+	conn := rp.getRead(db)
 	defer conn.Close()
 	return redigo.Int64(conn.Do("ZSCORE", key, item))
 }
@@ -111,11 +111,11 @@ ZRem批量删除sorted set表中的元素
 返回值：
 	affected: 每条命令影响的行数
 */
-func (rp *RWPool) ZRem(db int, args ...interface{}) (affected []interface{}, e error) {
+func (rp *mPool) ZRem(db int, args ...interface{}) (affected []interface{}, e error) {
 	if len(args)%2 != 0 {
 		return nil, errors.New("invalid arguments number")
 	}
-	fcon := rp.getWriteConnection(db)
+	fcon := rp.getWrite(db)
 	defer fcon.Close()
 	if e := fcon.Send("MULTI"); e != nil {
 		return nil, e
@@ -131,8 +131,8 @@ func (rp *RWPool) ZRem(db int, args ...interface{}) (affected []interface{}, e e
 }
 
 //批量获取有序集合的元素的得分
-func (rp *RWPool) ZMultiScore(db int, key interface{}, items ...interface{}) (scores map[interface{}]int64, e error) {
-	conn := rp.getReadConnection(db)
+func (rp *mPool) ZMultiScore(db int, key interface{}, items ...interface{}) (scores map[interface{}]int64, e error) {
+	conn := rp.getRead(db)
 	defer conn.Close()
 	for _, id := range items {
 		if e := conn.Send("ZSCORE", key, id); e != nil {
@@ -155,8 +155,8 @@ func (rp *RWPool) ZMultiScore(db int, key interface{}, items ...interface{}) (sc
 }
 
 //ZIsMember判断是否是有序集合的成员
-func (rp *RWPool) ZIsMember(db int, key interface{}, item interface{}) (isMember bool, e error) {
-	conn := rp.getReadConnection(db)
+func (rp *mPool) ZIsMember(db int, key interface{}, item interface{}) (isMember bool, e error) {
+	conn := rp.getRead(db)
 	defer conn.Close()
 	_, e = redigo.Float64(conn.Do("ZSCORE", key, item))
 	switch e {
@@ -170,8 +170,8 @@ func (rp *RWPool) ZIsMember(db int, key interface{}, item interface{}) (isMember
 }
 
 //批量判断是否是有序集合中的元素
-func (rp *RWPool) ZMultiIsMember(db int, key interface{}, items []interface{}) ([]bool, error) {
-	conn := rp.getReadConnection(db)
+func (rp *mPool) ZMultiIsMember(db int, key interface{}, items []interface{}) ([]bool, error) {
+	conn := rp.getRead(db)
 	defer conn.Close()
 	for idx := range items {
 		if e := conn.Send("ZSCORE", key, items[idx]); e != nil {
@@ -196,8 +196,8 @@ func (rp *RWPool) ZMultiIsMember(db int, key interface{}, items []interface{}) (
 	return repy, nil
 }
 
-func (rp *RWPool) ZRangeByScore(db int, key interface{}, min, max interface{}) (reply []interface{}, e error) {
-	scon := rp.getReadConnection(db)
+func (rp *mPool) ZRangeByScore(db int, key interface{}, min, max interface{}) (reply []interface{}, e error) {
+	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Values(scon.Do("ZRANGEBYSCORE", key, min, max, "WITHSCORES"))
 	//if e != nil {
@@ -210,8 +210,8 @@ func (rp *RWPool) ZRangeByScore(db int, key interface{}, min, max interface{}) (
 	//return
 }
 
-func (rp *RWPool) ZRevRangeByScore(db int, key interface{}, min, max interface{}) (reply []interface{}, e error) {
-	scon := rp.getReadConnection(db)
+func (rp *mPool) ZRevRangeByScore(db int, key interface{}, min, max interface{}) (reply []interface{}, e error) {
+	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Values(scon.Do("ZREVRANGEBYSCORE", key, max, min, "WITHSCORES"))
 	//if e != nil {
@@ -223,35 +223,35 @@ func (rp *RWPool) ZRevRangeByScore(db int, key interface{}, min, max interface{}
 	//return
 }
 
-func (rp *RWPool) ZREVRangeWithScoresPS(db int, key interface{}, cur int, ps int) (reply []interface{}, e error) {
+func (rp *mPool) ZREVRangeWithScoresPS(db int, key interface{}, cur int, ps int) (reply []interface{}, e error) {
 	return rp.zRangeWithScoresPS(db, key, cur, ps, false)
 }
 
-func (rp *RWPool) ZRangeWithScoresPS(db int, key interface{}, cur int, ps int) (reply []interface{}, e error) {
+func (rp *mPool) ZRangeWithScoresPS(db int, key interface{}, cur int, ps int) (reply []interface{}, e error) {
 	return rp.zRangeWithScoresPS(db, key, cur, ps, true)
 }
 
-func (rp *RWPool) ZREVRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
+func (rp *mPool) ZREVRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
 	return rp.zRangeWithScores(db, key, start, end, false)
 }
 
-func (rp *RWPool) ZRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
+func (rp *mPool) ZRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
 	return rp.zRangeWithScores(db, key, start, end, true)
 }
 
 //分页获取SortedSet的ID集合
-func (rp *RWPool) ZRangePS(db int, key interface{}, cur int, ps int, asc bool) (reply interface{}, e error) {
+func (rp *mPool) ZRangePS(db int, key interface{}, cur int, ps int, asc bool) (reply interface{}, e error) {
 	start, end := buildRange(cur, ps)
 	return rp.ZRange(db, key, start, end, asc)
 }
 
 //获取SortedSet的ID集合
-func (rp *RWPool) ZRange(db int, key interface{}, start, end int, asc bool) (reply []interface{}, e error) {
+func (rp *mPool) ZRange(db int, key interface{}, start, end int, asc bool) (reply []interface{}, e error) {
 	cmd := "ZRANGE"
 	if !asc {
 		cmd = "ZREVRANGE"
 	}
-	scon := rp.getReadConnection(db)
+	scon := rp.getRead(db)
 	defer scon.Close()
 
 	return redigo.Values(scon.Do(cmd, key, start, end))
@@ -265,7 +265,7 @@ func (rp *RWPool) ZRange(db int, key interface{}, start, end int, asc bool) (rep
 }
 
 //分页获取带积分的SortedSet值
-func (rp *RWPool) zRangeWithScoresPS(db int, key interface{}, cur int, ps int, asc bool) (reply []interface{}, e error) {
+func (rp *mPool) zRangeWithScoresPS(db int, key interface{}, cur int, ps int, asc bool) (reply []interface{}, e error) {
 	if ps > 100 {
 		ps = 100
 	}
@@ -274,12 +274,12 @@ func (rp *RWPool) zRangeWithScoresPS(db int, key interface{}, cur int, ps int, a
 }
 
 //获取带积分的SortedSet值
-func (rp *RWPool) zRangeWithScores(db int, key interface{}, start, end int, asc bool) (reply []interface{}, e error) {
+func (rp *mPool) zRangeWithScores(db int, key interface{}, start, end int, asc bool) (reply []interface{}, e error) {
 	cmd := "ZRANGE"
 	if !asc {
 		cmd = "ZREVRANGE"
 	}
-	scon := rp.getReadConnection(db)
+	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Values(scon.Do(cmd, key, start, end, "WITHSCORES"))
 	//if e != nil {
@@ -296,19 +296,19 @@ func (rp *RWPool) zRangeWithScores(db int, key interface{}, start, end int, asc 
 /*
 根据score 获取有序集 ZREVRANGEBYSCORE min <=score < max  按照score 从大到小排序, ps 获取条数
 */
-func (rp *RWPool) ZREVRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int) (reply []interface{}, e error) {
+func (rp *mPool) ZREVRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int) (reply []interface{}, e error) {
 	return rp.zRangeByScoreWithScores(db, key, min, max, ps, false)
 }
 
 /*
 根据score 获取有序集 ZRANGEBYSCORE min <score <= max  按照score 从小到大排序, ps 获取条数
 */
-func (rp *RWPool) ZRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int) (reply []interface{}, e error) {
+func (rp *mPool) ZRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int) (reply []interface{}, e error) {
 	return rp.zRangeByScoreWithScores(db, key, min, max, ps, true)
 }
 
 //根据积分的SortedSet值
-func (rp *RWPool) zRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int, asc bool) (reply []interface{}, e error) {
+func (rp *mPool) zRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int, asc bool) (reply []interface{}, e error) {
 	var s1, cmd string
 	if asc {
 		s1 = fmt.Sprintf("(%d", min)
@@ -317,7 +317,7 @@ func (rp *RWPool) zRangeByScoreWithScores(db int, key interface{}, min, max int6
 		s1 = fmt.Sprintf("%d", max)
 		cmd = "ZREVRANGEBYSCORE"
 	}
-	scon := rp.getReadConnection(db)
+	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Values(scon.Do(cmd, key, s1, max, "WITHSCORES", "LIMIT", 0, ps))
 	//if e != nil {
@@ -333,8 +333,8 @@ func (rp *RWPool) zRangeByScoreWithScores(db int, key interface{}, min, max int6
 /*
 移除有序集 key 中，所有 score 值介于 min 和 max 之间(包括等于 min 或 max )的成员
 */
-func (rp *RWPool) ZRemRangeByScore(db int, key interface{}, min, max int64) error {
-	conn := rp.getWriteConnection(db)
+func (rp *mPool) ZRemRangeByScore(db int, key interface{}, min, max int64) error {
+	conn := rp.getWrite(db)
 	defer conn.Close()
 	_, e := conn.Do("ZREMRANGEBYSCORE", key, min, max)
 	return e
@@ -348,7 +348,7 @@ keys: 带合并的keys集合 <key> 的列表
 expire: 有效时间 （秒值）
 aggregate: 聚合方式： SUM | MIN | MAX
 */
-func (rp *RWPool) ZUnionStore(db int, dest_key interface{}, expire int, keys []interface{}, weights []interface{}, aggregate string) error {
+func (rp *mPool) ZUnionStore(db int, dest_key interface{}, expire int, keys []interface{}, weights []interface{}, aggregate string) error {
 	if len(keys) != len(weights) || len(keys) <= 0 {
 		return errors.New("invalid numbers of keys and weights")
 	}
@@ -358,7 +358,7 @@ func (rp *RWPool) ZUnionStore(db int, dest_key interface{}, expire int, keys []i
 	args = append(args, "WEIGHTS")
 	args = append(args, weights...)
 	args = append(args, "AGGREGATE", aggregate)
-	conn := rp.getWriteConnection(db)
+	conn := rp.getWrite(db)
 	fmt.Println("ZUnionSrore : ", args)
 	defer conn.Close()
 	if _, e := conn.Do("ZUNIONSTORE", args...); e != nil {
