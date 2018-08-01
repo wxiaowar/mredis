@@ -28,8 +28,7 @@ func (rp *mPool) SetEx(db int, key interface{}, seconds int, value interface{}) 
 func (rp *mPool) SetNx(db int, key interface{}, value interface{}) (val int, e error) {
 	scon := rp.getWrite(db)
 	defer scon.Close()
-	val, e = redigo.Int(scon.Do("SETNX", key, value))
-	return
+	return redigo.Int(scon.Do("SETNX", key, value))
 }
 
 func (rp *mPool) Incr(db int, key interface{}) (int64, error) {

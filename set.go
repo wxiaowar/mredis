@@ -6,19 +6,17 @@ import (
 )
 
 // args : key, val1, val2, val3....
-func (rp *mPool) SAdd(db int, args ...interface{}) (e error) {
+func (rp *mPool) SAdd(db int, args ...interface{}) (int64, error) {
 	scon := rp.getWrite(db)
 	defer scon.Close()
-	_, e = scon.Do("SADD", args...)
-	return
+	return redigo.Int64(scon.Do("SADD", args...))
 }
 
 // args : key, val1, val2, val3...
-func (rp *mPool) SRem(db int, args ...interface{}) (e error) {
+func (rp *mPool) SRem(db int, args ...interface{}) (int64, error) {
 	scon := rp.getWrite(db)
 	defer scon.Close()
-	_, e = scon.Do("SREM", args...)
-	return
+	return redigo.Int64(scon.Do("SREM", args...))
 }
 
 func (rp *mPool) SIsMember(db int, key interface{}, value interface{}) (isMember bool, e error) {
@@ -60,7 +58,7 @@ SRandMembers获取某个key下的随机count 个元素
 func (rp *mPool) SRandMembers(db int, key interface{}, count int) (values interface{}, e error) {
 	scon := rp.getRead(db)
 	defer scon.Close()
-	 return redigo.Values(scon.Do("SRANDMEMBER", key, count))
+	return redigo.Values(scon.Do("SRANDMEMBER", key, count))
 }
 
 /*

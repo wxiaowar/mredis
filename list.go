@@ -97,11 +97,10 @@ func (rp *mPool) LTrim(db int, key interface{}, start, end int) (e error) {
 /*
 删除
 */
-func (rp *mPool) LRem(db int, key interface{}, count int, value interface{}) (e error) {
+func (rp *mPool) LRem(db int, key interface{}, count int, value interface{}) (int, error) {
 	scon := rp.getWrite(db)
 	defer scon.Close()
-	_, e = scon.Do("LREM", key, count, value)
-	return
+	return redigo.Int(scon.Do("LREM", key, count, value))
 }
 
 /*
@@ -110,8 +109,7 @@ func (rp *mPool) LRem(db int, key interface{}, count int, value interface{}) (e 
 func (rp *mPool) LIndex(db int, key interface{}, index int) (value interface{}, e error) {
 	scon := rp.getRead(db)
 	defer scon.Close()
-	value, e = scon.Do("LINDEX", key, index)
-	return
+	return scon.Do("LINDEX", key, index)
 }
 
 /*

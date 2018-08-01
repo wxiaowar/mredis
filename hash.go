@@ -5,12 +5,11 @@ import (
 	"errors"
 )
 
-func (rp *mPool) HSet(db int, key interface{}, id interface{}, value interface{}) (e error) {
+func (rp *mPool) HSet(db int, key interface{}, id interface{}, value interface{}) (int, error) {
 	scon := rp.getWrite(db)
 	defer scon.Close()
 
-	_, e = scon.Do("HSET", key, id, value)
-	return
+	return redigo.Int(scon.Do("HSET", key, id, value))
 }
 
 func (rp *mPool) HGet(db int, key interface{}, name interface{}) (value interface{}, e error) {
@@ -69,16 +68,15 @@ func (rp *mPool) HMSet(db int, args...interface{}) (e error) {
 HDel批量删除某个Key中的元素
 	args: 第一个必须是key，后面的都是id
 */
-func (rp *mPool) HDel(db int, args ...interface{}) (e error) {
+func (rp *mPool) HDel(db int, args ...interface{}) (int, error) {
 	if len(args) <= 1 {
-		return nil
+		return 0, nil
 	}
 
 	scon := rp.getWrite(db)
 	defer scon.Close()
 
-	_, e = scon.Do("HDEL", args...)
-	return
+	return redigo.Int(scon.Do("HDEL", args...))
 }
 
 func (rp *mPool) HIncrBy(db int, key interface{}, field interface{}, increment int64) (reply int64, e error) {

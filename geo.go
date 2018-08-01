@@ -9,15 +9,14 @@ import redigo "github.com/gomodule/redigo/redis"
 /*
 	添加几个
 */
-func (rp *mPool) GeoAdd(db int, key interface{}, values ...interface{}) (e error) {
+func (rp *mPool) GeoAdd(db int, key interface{}, values ...interface{}) (int64, error) {
 	args := make([]interface{}, len(values)+1)
 	args[0] = key
 	copy(args[1:], values)
 	scon := rp.getWrite(db)
 
 	defer scon.Close()
-	_, e = scon.Do("GEOADD", args...)
-	return
+	return redigo.Int64(scon.Do("GEOADD", args...))
 }
 
 /*

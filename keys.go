@@ -10,22 +10,20 @@ func (rp *mPool) Exists(db int, key interface{}) (bool, error) {
 	return redigo.Bool(conn.Do("EXISTS", key))
 }
 
-func (rp *mPool) Del(db int, key interface{}) error {
+// 返回值小于1，表示键不存在
+func (rp *mPool) Del(db int, key ...interface{}) (int, error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
-	_, e := conn.Do("DEL", key)
-	return e
+	return redigo.Int(conn.Do("DEL", key...))
 }
 
 /*
-设置key的有效时间
+设置key的有效时间,返回值不等于1，表示键不存在
 */
-func (rp *mPool) Expire(db, expire int, key interface{}) (e error) {
+func (rp *mPool) Expire(db, expire int, key interface{}) (int, error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
-	_, e = conn.Do("EXPIRE", key, expire)
-	return
-
+	return redigo.Int(conn.Do("EXPIRE", key, expire))
 }
 
 /*
@@ -34,13 +32,13 @@ func (rp *mPool) Expire(db, expire int, key interface{}) (e error) {
 	db: 数据库表ID
 	expireat:缓存失效的到期时间(unix 时间戳)
 	key: 键值
+
+	不能存在或者没办法设置，返回0
 */
 func (rp *mPool) Expireat(db int, expireat int64, key interface{}) (ret int, e error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
-	ret, e = redigo.Int(conn.Do("EXPIREAT", key, expireat))
-	return
-
+	return redigo.Int(conn.Do("EXPIREAT", key, expireat))
 }
 
 /*
@@ -129,14 +127,11 @@ func (rp *mPool) KeyScanWithPattern(db int, cursor string, pattern string) (r Sc
 func (rp *mPool) TTL(db int, key interface{}) (expire int, e error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
-	expire, e = redigo.Int(conn.Do("TTL", key))
-	return
-
+	return redigo.Int(conn.Do("TTL", key))
 }
 
 func (rp *mPool) Keys(db int, pattern string) (keys []string, e error) {
 	conn := rp.getRead(db)
 	defer conn.Close()
-	keys, e = redigo.Strings(conn.Do("KEYS", pattern))
-	return
+	return redigo.Strings(conn.Do("KEYS", pattern))
 }
