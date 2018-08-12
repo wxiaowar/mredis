@@ -4,14 +4,14 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-func (rp *mPool) Exists(db int, key interface{}) (bool, error) {
+func (rp *RedisPool) Exists(db int, key interface{}) (bool, error) {
 	conn := rp.getRead(db)
 	defer conn.Close()
 	return redigo.Bool(conn.Do("EXISTS", key))
 }
 
 // 返回值小于1，表示键不存在
-func (rp *mPool) Del(db int, key ...interface{}) (int, error) {
+func (rp *RedisPool) Del(db int, key ...interface{}) (int, error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
 	return redigo.Int(conn.Do("DEL", key...))
@@ -20,7 +20,7 @@ func (rp *mPool) Del(db int, key ...interface{}) (int, error) {
 /*
 设置key的有效时间,返回值不等于1，表示键不存在
 */
-func (rp *mPool) Expire(db, expire int, key interface{}) (int, error) {
+func (rp *RedisPool) Expire(db, expire int, key interface{}) (int, error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
 	return redigo.Int(conn.Do("EXPIRE", key, expire))
@@ -35,7 +35,7 @@ func (rp *mPool) Expire(db, expire int, key interface{}) (int, error) {
 
 	不能存在或者没办法设置，返回0
 */
-func (rp *mPool) Expireat(db int, expireat int64, key interface{}) (ret int, e error) {
+func (rp *RedisPool) Expireat(db int, expireat int64, key interface{}) (ret int, e error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
 	return redigo.Int(conn.Do("EXPIREAT", key, expireat))
@@ -48,7 +48,7 @@ MultiExpire 批量设置key的有效时间
 	expire:缓存失效时间(秒值)
 	args:key的列表
 */
-func (rp *mPool) MultiExpire(db, expire int, args ...interface{}) (e error) {
+func (rp *RedisPool) MultiExpire(db, expire int, args ...interface{}) (e error) {
 	if len(args) <= 0 {
 		return
 	}
@@ -70,7 +70,7 @@ func (rp *mPool) MultiExpire(db, expire int, args ...interface{}) (e error) {
 	return nil
 }
 
-func (rp *mPool) MultiExec(db int, cmd func(con redigo.Conn) error) error {
+func (rp *RedisPool) MultiExec(db int, cmd func(con redigo.Conn) error) error {
 	fcon := rp.getWrite(db)
 	defer fcon.Close()
 	if e := fcon.Send("MULTI"); e != nil {
@@ -91,7 +91,7 @@ type ScanResult struct {
 	Keys   []string
 }
 
-func (rp *mPool) KeyScan(db int, cursor string) (r ScanResult, e error) {
+func (rp *RedisPool) KeyScan(db int, cursor string) (r ScanResult, e error) {
 	fcon := rp.getWrite(db)
 	defer fcon.Close()
 	reply, e := redigo.Values(fcon.Do("SCAN", cursor, "COUNT", 1000))
@@ -107,7 +107,7 @@ func (rp *mPool) KeyScan(db int, cursor string) (r ScanResult, e error) {
 	return
 }
 
-func (rp *mPool) KeyScanWithPattern(db int, cursor string, pattern string) (r ScanResult, e error) {
+func (rp *RedisPool) KeyScanWithPattern(db int, cursor string, pattern string) (r ScanResult, e error) {
 	fcon := rp.getWrite(db)
 	defer fcon.Close()
 	reply, e := redigo.Values(fcon.Do("SCAN", cursor, "MATCH", pattern, "COUNT", 100))
@@ -124,13 +124,13 @@ func (rp *mPool) KeyScanWithPattern(db int, cursor string, pattern string) (r Sc
 /*
 获取key的有效时间
 */
-func (rp *mPool) TTL(db int, key interface{}) (expire int, e error) {
+func (rp *RedisPool) TTL(db int, key interface{}) (expire int, e error) {
 	conn := rp.getWrite(db)
 	defer conn.Close()
 	return redigo.Int(conn.Do("TTL", key))
 }
 
-func (rp *mPool) Keys(db int, pattern string) (keys []string, e error) {
+func (rp *RedisPool) Keys(db int, pattern string) (keys []string, e error) {
 	conn := rp.getRead(db)
 	defer conn.Close()
 	return redigo.Strings(conn.Do("KEYS", pattern))

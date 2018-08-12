@@ -5,10 +5,14 @@ import (
 	"go/src/fmt"
 )
 
+var p *RedisPool
+
+func init() {
+	p = NewPool("127.0.0.1:6379", 2, 2, 0)
+}
+
 //
 func TestNewPool(t *testing.T) {
-	p := NewPool("127.0.0.1:6379", 2, 2, 0)
-
 	mk := "hkey"
 	for i:=0; i<5; i++ {
 		key := fmt.Sprintf("key_%d", i)
@@ -28,10 +32,18 @@ func TestNewPool(t *testing.T) {
 		bts := reply[idx].([]byte)
 		fmt.Printf("idx[%d] %s = %v\n", idx, string(bts), reply[idx])
 	}
+
+	r, err := p.HIncrBy(0, mk, "key_1", 1000000)
+	fmt.Printf("hincrby %v-%v\n", r, err)
+
+
+	r2, err := p.HGet(0, mk, "key_1")
+	fmt.Printf("hget %v-%v\n", r2, err)
 }
 
 //
 func TestRwPool(t *testing.T) {
+	return
 	wop := Option{
 		DbId: 0,
 		Address:"127.0.0.1:6379",

@@ -9,12 +9,12 @@ type proxy interface {
 	check(int)
 }
 
-type mPool struct {
+type RedisPool struct {
 	proxy
 }
 
-func newMPool(rw proxy) *mPool {
-	return &mPool{rw}
+func newMPool(rw proxy) *RedisPool {
+	return &RedisPool{rw}
 }
 
 

@@ -41,7 +41,7 @@ type Option struct {
 }
 
 //
-func NewRWPool(woption Option, roptions []Option) *mPool {
+func NewRWPool(woption Option, roptions []Option) *RedisPool {
 	rpools := make([]*redis.Pool, len(roptions))
 	for idx, roption := range roptions {
 		rpools[idx] = NewRedigoPool(roption.Address, roption.MaxIdle, roption.MaxActive, roption.DbId)
@@ -56,7 +56,7 @@ func NewRWPool(woption Option, roptions []Option) *mPool {
 }
 
 // NewPool create pool, which auto close conn
-func NewPool(address string, maxIdle, maxActive, db int) *mPool {
+func NewPool(address string, maxIdle, maxActive, db int) *RedisPool {
 	rp := NewRedigoPool(address, maxIdle, maxActive, db)
 	c := &common{Pool: rp}
 	return newMPool(c)
