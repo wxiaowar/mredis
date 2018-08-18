@@ -9,13 +9,13 @@ import (
 
 // NOTE!!!! when use this, must close conn, mannul
 // NewRedigoPool base pool, return redigo pool
-func NewRedigoPool(addr string, maxIdle, maxActive, db int) *redis.Pool {
+func NewRedigoPool(addr, pwd string, maxIdle, maxActive, db int) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     maxIdle,
 		MaxActive:   maxActive,
 		IdleTimeout: 120 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", addr, redis.DialDatabase(db))
+			c, err := redis.Dial("tcp", addr, redis.DialPassword(pwd), redis.DialDatabase(db))
 			if err != nil {
 				return nil, err
 			}
@@ -38,16 +38,17 @@ type Option struct {
 	MaxIdle   int
 	MaxActive int
 	Address   string
+	Password  string
 }
 
 //
 func NewRWPool(woption Option, roptions []Option) *RedisPool {
 	rpools := make([]*redis.Pool, len(roptions))
 	for idx, roption := range roptions {
-		rpools[idx] = NewRedigoPool(roption.Address, roption.MaxIdle, roption.MaxActive, roption.DbId)
+		rpools[idx] = NewRedigoPool(roption.Address, roption.Password, roption.MaxIdle, roption.MaxActive, roption.DbId)
 	}
 
-	wpool := NewRedigoPool(woption.Address, woption.MaxIdle, woption.MaxActive, woption.DbId)
+	wpool := NewRedigoPool(woption.Address, woption.Password, woption.MaxIdle, woption.MaxActive, woption.DbId)
 
 	mp := newMPool(&rw{wpool, rpools})
 	go mp.check(0)
@@ -56,8 +57,8 @@ func NewRWPool(woption Option, roptions []Option) *RedisPool {
 }
 
 // NewPool create pool, which auto close conn
-func NewPool(address string, maxIdle, maxActive, db int) *RedisPool {
-	rp := NewRedigoPool(address, maxIdle, maxActive, db)
+func NewPool(address, passwd string, maxIdle, maxActive, db int) *RedisPool {
+	rp := NewRedigoPool(address, passwd, maxIdle, maxActive, db)
 	c := &common{Pool: rp}
 	return newMPool(c)
 }

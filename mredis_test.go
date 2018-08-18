@@ -8,7 +8,7 @@ import (
 var p *RedisPool
 
 func init() {
-	p = NewPool("127.0.0.1:6379", 2, 2, 0)
+	p = NewPool("127.0.0.1:6379", "", 2, 2, 0)
 }
 
 //
