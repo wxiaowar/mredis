@@ -196,31 +196,37 @@ func (rp *RedisPool) ZMultiIsMember(db int, key interface{}, items []interface{}
 	return repy, nil
 }
 
-func (rp *RedisPool) ZRangeByScore(db int, key interface{}, min, max interface{}) (reply []interface{}, e error) {
+//获取SortedSet的ID集合
+func (rp *RedisPool) ZRange(db int, key interface{}, start, end int) (reply []interface{}, e error) {
 	scon := rp.getRead(db)
 	defer scon.Close()
-	return redigo.Values(scon.Do("ZRANGEBYSCORE", key, min, max, "WITHSCORES"))
-	//if e != nil {
-	//	return nil, errors.New(fmt.Sprintf("ZRANGEBYSCORE error: %v", e.Error()))
-	//}
-	//
-	//if e = redigo.ScanSlice(values, &items); e != nil {
-	//	return nil, errors.New(fmt.Sprintf("ScanSlice error: %v", e.Error()))
-	//}
-	//return
+	return redigo.Values(scon.Do("ZRANGE", key, start, end))
 }
 
-func (rp *RedisPool) ZRevRangeByScore(db int, key interface{}, min, max interface{}) (reply []interface{}, e error) {
+//获取SortedSet的ID集合
+func (rp *RedisPool) ZRevRange(db int, key interface{}, start, end int) (reply []interface{}, e error) {
 	scon := rp.getRead(db)
 	defer scon.Close()
-	return redigo.Values(scon.Do("ZREVRANGEBYSCORE", key, max, min, "WITHSCORES"))
-	//if e != nil {
-	//	return nil, errors.New(fmt.Sprintf("ZREVRANGEBYSCORE error: %v", e.Error()))
-	//}
-	//if e = redigo.ScanSlice(values, &items); e != nil {
-	//	return nil, errors.New(fmt.Sprintf("ScanSlice error: %v", e.Error()))
-	//}
-	//return
+	return redigo.Values(scon.Do("ZREVRANGE", key, start, end))
+}
+
+//分页获取SortedSet的ID集合
+func (rp *RedisPool) ZRangePS(db int, key interface{}, cur int, ps int) (reply interface{}, e error) {
+	start, end := buildRange(cur, ps)
+	return rp.ZRange(db, key, start, end)
+}
+
+func (rp *RedisPool) ZRevRangePS(db int, key interface{}, cur int, ps int) (reply interface{}, e error) {
+	start, end := buildRange(cur, ps)
+	return rp.ZRevRange(db, key, start, end)
+}
+
+func (rp *RedisPool) ZRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
+	return rp.zRangeWithScores(db, key, start, end, true)
+}
+
+func (rp *RedisPool) ZREVRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
+	return rp.zRangeWithScores(db, key, start, end, false)
 }
 
 func (rp *RedisPool) ZREVRangeWithScoresPS(db int, key interface{}, cur int, ps int) (reply []interface{}, e error) {
@@ -231,37 +237,67 @@ func (rp *RedisPool) ZRangeWithScoresPS(db int, key interface{}, cur int, ps int
 	return rp.zRangeWithScoresPS(db, key, cur, ps, true)
 }
 
-func (rp *RedisPool) ZREVRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
-	return rp.zRangeWithScores(db, key, start, end, false)
-}
-
-func (rp *RedisPool) ZRangeWithScores(db int, key interface{}, start, end int) (reply []interface{}, e error) {
-	return rp.zRangeWithScores(db, key, start, end, true)
-}
-
-//分页获取SortedSet的ID集合
-func (rp *RedisPool) ZRangePS(db int, key interface{}, cur int, ps int, asc bool) (reply interface{}, e error) {
-	start, end := buildRange(cur, ps)
-	return rp.ZRange(db, key, start, end, asc)
-}
-
 //获取SortedSet的ID集合
-func (rp *RedisPool) ZRange(db int, key interface{}, start, end int, asc bool) (reply []interface{}, e error) {
-	cmd := "ZRANGE"
-	if !asc {
-		cmd = "ZREVRANGE"
-	}
+func (rp *RedisPool) ZRangeByScore(db int, key interface{}, min, max interface{}, limit int) (reply []interface{}, e error) {
 	scon := rp.getRead(db)
 	defer scon.Close()
+	rmax := fmt.Sprintf("(%d", max)
+	if limit <= 0 {
+		return redigo.Values(scon.Do("ZRANGEBYSCORE", key, min, rmax))
+	}
+	if limit > 128 {
+		limit = 128
+	}
+	return redigo.Values(scon.Do("ZRANGEBYSCORE", key, min, rmax, "LIMIT", 0, limit))
+}
 
-	return redigo.Values(scon.Do(cmd, key, start, end))
-	//if e != nil {
-	//	return e
-	//}
-	//if e = redigo.ScanSlice(values, results); e != nil {
-	//	return errors.New(fmt.Sprintf("ScanSlice error: %v", e.Error()))
-	//}
-	//return
+func (rp *RedisPool) ZRevRangeByScore(db int, key interface{}, min, max interface{}, limit int) (reply []interface{}, e error) {
+	scon := rp.getRead(db)
+	defer scon.Close()
+	rmin := fmt.Sprintf("(%d", min)
+	if limit <= 0 {
+		return redigo.Values(scon.Do("ZREVRANGEBYSCORE", key, max, rmin))
+	}
+
+	if limit > 128 {
+		limit = 128
+	}
+
+	return redigo.Values(scon.Do("ZREVRANGEBYSCORE", key, max, rmin, "LIMIT", 0, limit))
+}
+
+/*
+根据score 获取有序集 ZRANGEBYSCORE min <=score < max  按照score 从小到大排序, ps 获取条数
+*/
+func (rp *RedisPool) ZRangeByScoreWithScores(db int, key interface{}, min, max int64, limit int) (reply []interface{}, e error) {
+	if limit > 0 {
+		rp.zRangeByScoreWithScoresLimit(db, key, min, max, limit, true)
+	}
+	return rp.zRangeByScoreWithScoresNoLimit(db, key, min, max, true)
+}
+
+/*
+根据score 获取有序集 ZREVRANGEBYSCORE min <=score < max  按照score 从大到小排序, ps 获取条数
+*/
+func (rp *RedisPool) ZREVRangeByScoreWithScores(db int, key interface{}, min, max int64, limit int) (reply []interface{}, e error) {
+	if limit > 0 {
+		return rp.zRangeByScoreWithScoresLimit(db, key, min, max, limit, false)
+	}
+	return rp.zRangeByScoreWithScoresNoLimit(db, key, min, max, false)
+}
+
+/*
+根据score 获取有序集 ZRANGEBYSCORE min <score <= max  按照score 从小到大排序, ps 获取条数
+*/
+func (rp *RedisPool) ZRangeByScoreWithScoresPS(db int, key interface{}, min, max int64, cur, ps int) (reply []interface{}, e error) {
+	return rp.zRangeByScoreWithScoresPS(db, key, min, max, cur, ps, true)
+}
+
+/*
+根据score 获取有序集 ZREVRANGEBYSCORE min <=score < max  按照score 从大到小排序, ps 获取条数
+*/
+func (rp *RedisPool) ZREVRangeByScoreWithScoresPS(db int, key interface{}, min, max int64, cur, ps int) (reply []interface{}, e error) {
+	return rp.zRangeByScoreWithScoresPS(db, key, min, max, cur, ps, false)
 }
 
 //分页获取带积分的SortedSet值
@@ -282,52 +318,50 @@ func (rp *RedisPool) zRangeWithScores(db int, key interface{}, start, end int, a
 	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Values(scon.Do(cmd, key, start, end, "WITHSCORES"))
-	//if e != nil {
-	//	return nil, errors.New(fmt.Sprintf("%v error: %v", cmd, e.Error()))
-	//}
-
-	//items = make([]ItemScore, 0, 100)
-	//if e = redigo.ScanSlice(values, &items); e != nil {
-	//	return nil, errors.New(fmt.Sprintf("ScanSlice error: %v", e.Error()))
-	//}
-	//return
-}
-
-/*
-根据score 获取有序集 ZREVRANGEBYSCORE min <=score < max  按照score 从大到小排序, ps 获取条数
-*/
-func (rp *RedisPool) ZREVRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int) (reply []interface{}, e error) {
-	return rp.zRangeByScoreWithScores(db, key, min, max, ps, false)
-}
-
-/*
-根据score 获取有序集 ZRANGEBYSCORE min <score <= max  按照score 从小到大排序, ps 获取条数
-*/
-func (rp *RedisPool) ZRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int) (reply []interface{}, e error) {
-	return rp.zRangeByScoreWithScores(db, key, min, max, ps, true)
 }
 
 //根据积分的SortedSet值
-func (rp *RedisPool) zRangeByScoreWithScores(db int, key interface{}, min, max int64, ps int, asc bool) (reply []interface{}, e error) {
-	var s1, cmd string
-	if asc {
-		s1 = fmt.Sprintf("(%d", min)
-		cmd = "ZRANGEBYSCORE"
-	} else {
-		s1 = fmt.Sprintf("%d", max)
-		cmd = "ZREVRANGEBYSCORE"
-	}
+func (rp *RedisPool) zRangeByScoreWithScoresNoLimit(db int, key interface{}, min, max int64, asc bool) (reply []interface{}, e error) {
 	scon := rp.getRead(db)
 	defer scon.Close()
-	return redigo.Values(scon.Do(cmd, key, s1, max, "WITHSCORES", "LIMIT", 0, ps))
-	//if e != nil {
-	//	return nil, errors.New(fmt.Sprintf("%v error: %v", cmd, e.Error()))
-	//}
-	//items = make([]ItemScore, 0, 100)
-	//if e = redigo.ScanSlice(values, &items); e != nil {
-	//	return nil, errors.New(fmt.Sprintf("ScanSlice error: %v", e.Error()))
-	//}
-	//return
+	if asc {
+		s := fmt.Sprintf("(%d", max)
+		return redigo.Values(scon.Do("ZRANGEBYSCORE", key, min, s, "WITHSCORES"))
+	}
+
+	s := fmt.Sprintf("(%d", min)
+	return redigo.Values(scon.Do("ZREVRANGEBYSCORE", key, max, s, "WITHSCORES"))
+}
+
+//根据积分的SortedSet值
+func (rp *RedisPool) zRangeByScoreWithScoresLimit(db int, key interface{}, min, max int64, limit int, asc bool) (reply []interface{}, e error) {
+	scon := rp.getRead(db)
+	defer scon.Close()
+	if asc {
+		s := fmt.Sprintf("(%d", max)
+		return redigo.Values(scon.Do("ZRANGEBYSCORE", key, min, s, "WITHSCORES", "LIMIT", 0, limit))
+	}
+
+	s := fmt.Sprintf("(%d", min)
+	return redigo.Values(scon.Do("ZREVRANGEBYSCORE", key, max, s, "WITHSCORES", "LIMIT", 0, limit))
+}
+
+// min <= score < max
+func (rp *RedisPool) zRangeByScoreWithScoresPS(db int, key interface{}, min, max int64, cur, ps int, asc bool) (reply []interface{}, e error) {
+	if ps > 128 {
+		ps = 128
+	}
+	start, end := buildRange(cur, ps)
+
+	scon := rp.getRead(db)
+	defer scon.Close()
+
+	s := fmt.Sprintf("(%d", min)
+	if asc {
+		return redigo.Values(scon.Do("ZRANGEBYSCORE", key, s, max, "WITHSCORES", "LIMIT", start, end))
+	}
+
+	return redigo.Values(scon.Do("ZREVRANGEBYSCORE", key, max, s, "WITHSCORES", "LIMIT", start, end))
 }
 
 /*

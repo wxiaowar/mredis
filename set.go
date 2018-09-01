@@ -55,7 +55,7 @@ SRandMembers获取某个key下的随机count 个元素
 参数：
 	values: 必须是数组的引用
 */
-func (rp *RedisPool) SRandMembers(db int, key interface{}, count int) (values interface{}, e error) {
+func (rp *RedisPool) SRandMembers(db int, key interface{}, count int) (values []interface{}, e error) {
 	scon := rp.getRead(db)
 	defer scon.Close()
 	return redigo.Values(scon.Do("SRANDMEMBER", key, count))
