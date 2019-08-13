@@ -4,38 +4,38 @@ import redigo "github.com/gomodule/redigo/redis"
 
 //批量插入队尾
 // args : <key, val1, val2, val3...>
-func (rp *RedisPool) RPush(db int, args ...interface{}) (llen int64, e error) {
+func (rp *RedisPool) RPush(args ...interface{}) (llen int64, e error) {
 	if len(args) < 2 {
 		return
 	}
 
-	scon := rp.getWrite(db)
+	scon := rp.getWrite()
 	defer scon.Close()
 	return redigo.Int64(scon.Do("RPUSH", args...))
 }
 
 // 队头弹出队列数据
-func (rp *RedisPool) LPop(db int, key interface{}) (value interface{}, e error) {
-	scon := rp.getWrite(db)
+func (rp *RedisPool) LPop(key interface{}) (value interface{}, e error) {
+	scon := rp.getWrite()
 	defer scon.Close()
 	return scon.Do("LPOP", key)
 }
 
 //批量插入队头
 // args : <key, val1, val2, val3...>
-func (rp *RedisPool) LPush(db int, args ...interface{}) (llen int64, e error) {
+func (rp *RedisPool) LPush(args ...interface{}) (llen int64, e error) {
 	if len(args) < 2 {
 		return
 	}
 
-	scon := rp.getWrite(db)
+	scon := rp.getWrite()
 	defer scon.Close()
 	return redigo.Int64(scon.Do("LPUSH", args...))
 }
 
 //从对尾pop
-func (rp *RedisPool) RPop(db int, key interface{}) (value interface{}, e error) {
-	scon := rp.getWrite(db)
+func (rp *RedisPool) RPop(key interface{}) (value interface{}, e error) {
+	scon := rp.getWrite()
 	defer scon.Close()
 	return scon.Do("RPOP", key)
 }
@@ -43,12 +43,12 @@ func (rp *RedisPool) RPop(db int, key interface{}) (value interface{}, e error) 
 /*
 args: timeout, key1, key2, key3...
 */
-func (rp *RedisPool) BRPop(db int, args ...interface{}) (value interface{}, e error) {
+func (rp *RedisPool) BRPop(args ...interface{}) (value interface{}, e error) {
 	if len(args) < 2 {
 		return
 	}
 
-	scon := rp.getWrite(db)
+	scon := rp.getWrite()
 	defer scon.Close()
 	return scon.Do("BRPOP", args...)
 }
@@ -61,7 +61,7 @@ func (rp *RedisPool) BLpop(db int, args ...interface{}) (value interface{}, e er
 		return
 	}
 
-	scon := rp.getWrite(db)
+	scon := rp.getWrite()
 	defer scon.Close()
 	return scon.Do("BLPOP", args...)
 }
@@ -69,8 +69,8 @@ func (rp *RedisPool) BLpop(db int, args ...interface{}) (value interface{}, e er
 /*
 获取队列数据
 */
-func (rp *RedisPool) LRange(db int, key interface{}, start, stop interface{}) (value []interface{}, e error) {
-	scon := rp.getRead(db)
+func (rp *RedisPool) LRange(key interface{}, start, stop interface{}) (value []interface{}, e error) {
+	scon := rp.getRead()
 	defer scon.Close()
 	return redigo.Values(scon.Do("LRANGE", key, start, stop))
 }
@@ -78,8 +78,8 @@ func (rp *RedisPool) LRange(db int, key interface{}, start, stop interface{}) (v
 /*
 获取队列长度，如果key不存在，length=0，不会报错。
 */
-func (rp *RedisPool) LLen(db int, key interface{}) (length int64, e error) {
-	scon := rp.getRead(db)
+func (rp *RedisPool) LLen(key interface{}) (length int64, e error) {
+	scon := rp.getRead()
 	defer scon.Close()
 	return redigo.Int64(scon.Do("LLEN", key))
 }
@@ -87,8 +87,8 @@ func (rp *RedisPool) LLen(db int, key interface{}) (length int64, e error) {
 /*
 剪裁
 */
-func (rp *RedisPool) LTrim(db int, key interface{}, start, end int) (e error) {
-	scon := rp.getWrite(db)
+func (rp *RedisPool) LTrim(key interface{}, start, end int) (e error) {
+	scon := rp.getWrite()
 	defer scon.Close()
 	_, e = scon.Do("LTRIM", key, start, end)
 	return
@@ -97,8 +97,8 @@ func (rp *RedisPool) LTrim(db int, key interface{}, start, end int) (e error) {
 /*
 删除
 */
-func (rp *RedisPool) LRem(db int, key interface{}, count int, value interface{}) (int, error) {
-	scon := rp.getWrite(db)
+func (rp *RedisPool) LRem(key interface{}, count int, value interface{}) (int, error) {
+	scon := rp.getWrite()
 	defer scon.Close()
 	return redigo.Int(scon.Do("LREM", key, count, value))
 }
@@ -106,8 +106,8 @@ func (rp *RedisPool) LRem(db int, key interface{}, count int, value interface{})
 /*
 索引元素
 */
-func (rp *RedisPool) LIndex(db int, key interface{}, index int) (value interface{}, e error) {
-	scon := rp.getRead(db)
+func (rp *RedisPool) LIndex(key interface{}, index int) (value interface{}, e error) {
+	scon := rp.getRead()
 	defer scon.Close()
 	return scon.Do("LINDEX", key, index)
 }
@@ -115,8 +115,8 @@ func (rp *RedisPool) LIndex(db int, key interface{}, index int) (value interface
 /*
 更新
 */
-func (rp *RedisPool) LSet(db int, key interface{}, idx int, data interface{}) (e error) {
-	scon := rp.getWrite(db)
+func (rp *RedisPool) LSet(key interface{}, idx int, data interface{}) (e error) {
+	scon := rp.getWrite()
 	defer scon.Close()
 	_, e = scon.Do("LSET", key, idx, data)
 	return
@@ -125,13 +125,13 @@ func (rp *RedisPool) LSet(db int, key interface{}, idx int, data interface{}) (e
 /*
 获取头部元素
 */
-func (rp *RedisPool) LFront(db int, key interface{}) (value interface{}, e error) {
-	return rp.LIndex(db, key, 0)
+func (rp *RedisPool) LFront(key interface{}) (value interface{}, e error) {
+	return rp.LIndex(key, 0)
 }
 
 /*
 获取尾部元素
 */
-func (rp *RedisPool) LBack(db int, key interface{}) (value interface{}, e error) {
-	return rp.LIndex(db, key, -1)
+func (rp *RedisPool) LBack(key interface{}) (value interface{}, e error) {
+	return rp.LIndex(key, -1)
 }

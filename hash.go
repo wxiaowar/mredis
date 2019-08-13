@@ -5,22 +5,22 @@ import (
 	"errors"
 )
 
-func (rp *RedisPool) HSet(db int, key interface{}, id interface{}, value interface{}) (int, error) {
-	scon := rp.getWrite(db)
+func (rp *RedisPool) HSet(key interface{}, id interface{}, value interface{}) (int, error) {
+	scon := rp.getWrite()
 	defer scon.Close()
 
 	return redigo.Int(scon.Do("HSET", key, id, value))
 }
 
-func (rp *RedisPool) HGet(db int, key interface{}, name interface{}) (value interface{}, e error) {
-	scon := rp.getRead(db)
+func (rp *RedisPool) HGet(key interface{}, name interface{}) (value interface{}, e error) {
+	scon := rp.getRead()
 	defer scon.Close()
 
 	return scon.Do("HGET", key, name)
 }
 
-func (rp *RedisPool) HLen(db int, key interface{}) (num int64, e error) {
-	scon := rp.getRead(db)
+func (rp *RedisPool) HLen(key interface{}) (num int64, e error) {
+	scon := rp.getRead()
 	defer scon.Close()
 
 	num, e = redigo.Int64(scon.Do("HLEN", key))
@@ -35,12 +35,12 @@ HMGet针对同一个key获取hashset中的部分元素的值
 
 reply=>{val1, val2, val3...}
 */
-func (rp *RedisPool) HMGet(db int, args ...interface{}) (reply []interface{}, e error) {
+func (rp *RedisPool) HMGet(args ...interface{}) (reply []interface{}, e error) {
 	if len(args) < 2 {
 		return
 	}
 
-	scon := rp.getRead(db)
+	scon := rp.getRead()
 	defer scon.Close()
 
 	return redigo.Values(scon.Do("HMGET", args...))
@@ -52,12 +52,12 @@ HMSet针对同一个key设置hashset中的部分元素的值
 参数：
 	args: key item value [item2, value2...] 值对
 */
-func (rp *RedisPool) HMSet(db int, args...interface{}) (e error) {
+func (rp *RedisPool) HMSet(args...interface{}) (e error) {
 	if len(args) < 2 {
 		return
 	}
 
-	scon := rp.getWrite(db)
+	scon := rp.getWrite()
 	defer scon.Close()
 
 	_, e = scon.Do("HMSET", args...)
@@ -68,19 +68,19 @@ func (rp *RedisPool) HMSet(db int, args...interface{}) (e error) {
 HDel批量删除某个Key中的元素
 	args: 第一个必须是key，后面的都是id
 */
-func (rp *RedisPool) HDel(db int, args ...interface{}) (int, error) {
+func (rp *RedisPool) HDel(args ...interface{}) (int, error) {
 	if len(args) <= 1 {
 		return 0, nil
 	}
 
-	scon := rp.getWrite(db)
+	scon := rp.getWrite()
 	defer scon.Close()
 
 	return redigo.Int(scon.Do("HDEL", args...))
 }
 
-func (rp *RedisPool) HIncrBy(db int, key interface{}, field interface{}, increment int64) (reply int64, e error) {
-	scon := rp.getWrite(db)
+func (rp *RedisPool) HIncrBy(key interface{}, field interface{}, increment int64) (reply int64, e error) {
+	scon := rp.getWrite()
 	defer scon.Close()
 
 	return redigo.Int64(scon.Do("HINCRBY", key, field, increment))
@@ -91,8 +91,8 @@ HGetAll针对同一个key获取hashset中的所有元素的值
 
 reply=>{key1, val1, key2, val2, ...}
 */
-func (rp *RedisPool) HGetAll(db int, key interface{}) (reply []interface{}, e error) {
-	scon := rp.getRead(db)
+func (rp *RedisPool) HGetAll(key interface{}) (reply []interface{}, e error) {
+	scon := rp.getRead()
 	defer scon.Close()
 
 	return redigo.Values(scon.Do("HGETALL", key))
@@ -104,12 +104,12 @@ HSet批量设置HashSet中的值
 	db: 数据库表ID
 	args: 必须是<key,id,value>的列表
 */
-func (rp *RedisPool) HMultiSet(db int, args ...interface{}) (e error) {
+func (rp *RedisPool) HMultiSet(args ...interface{}) (e error) {
 	if len(args)%3 != 0 {
 		return errors.New("invalid arguments number")
 	}
 
-	fcon := rp.getWrite(db)
+	fcon := rp.getWrite()
 	defer fcon.Close()
 
 	if e := fcon.Send("MULTI"); e != nil {
@@ -144,7 +144,7 @@ func (rp *RedisPool) HMultiGet(db int, args ...interface{}) (reply map[interface
 		return nil, errors.New("invalid arguments number")
 	}
 
-	conn := rp.getRead(db)
+	conn := rp.getRead()
 	defer conn.Close()
 	for i := 0; i < len(args); i += 2 {
 		if e := conn.Send("HGET", args[i], args[i+1]); e != nil {
@@ -175,8 +175,8 @@ func (rp *RedisPool) HMultiGet(db int, args ...interface{}) (reply map[interface
 /*
 HMultiGetAll批量获取多个key所有的字段, args 为要获取的hash的key
 */
-func (rp *RedisPool) HMultiGetAll(db int, args ...interface{}) (reply map[interface{}][]interface{}, e error) {
-	fcon := rp.getRead(db)
+func (rp *RedisPool) HMultiGetAll(args ...interface{}) (reply map[interface{}][]interface{}, e error) {
+	fcon := rp.getRead()
 	defer fcon.Close()
 
 	for _, key := range args {

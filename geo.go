@@ -13,7 +13,7 @@ func (rp *RedisPool) GeoAdd(db int, key interface{}, values ...interface{}) (int
 	args := make([]interface{}, len(values)+1)
 	args[0] = key
 	copy(args[1:], values)
-	scon := rp.getWrite(db)
+	scon := rp.getWrite()
 
 	defer scon.Close()
 	return redigo.Int64(scon.Do("GEOADD", args...))
@@ -26,8 +26,8 @@ func (rp *RedisPool) GeoAdd(db int, key interface{}, values ...interface{}) (int
 	mi for miles.
 	ft for feet.
 */
-func (rp *RedisPool) GeoDist(db int, key interface{}, mem1, mem2 uint32, unit string) (distance float64, e error) {
-	scon := rp.getRead(db)
+func (rp *RedisPool) GeoDist(key interface{}, mem1, mem2 uint32, unit string) (distance float64, e error) {
+	scon := rp.getRead()
 	defer scon.Close()
 	return redigo.Float64(scon.Do("GEODIST", key, mem1, mem2, unit))
 }

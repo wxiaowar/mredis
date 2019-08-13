@@ -1,8 +1,8 @@
 package mredis
 
 import (
+	"fmt"
 	"testing"
-	"go/src/fmt"
 )
 
 var p *RedisPool
@@ -11,17 +11,17 @@ func init() {
 	p = NewPool("127.0.0.1:6379", "", 2, 2, 0)
 }
 
-//
+// 单连接
 func TestNewPool(t *testing.T) {
 	mk := "hkey"
 	for i:=0; i<5; i++ {
 		key := fmt.Sprintf("key_%d", i)
 		//val := fmt.Sprintf("val_%d", i)
-		p.HSet(0, mk, key, i)
+		p.HSet(mk, key, i)
 	}
 
 
-	reply, err := p.HGetAll(0, mk)
+	reply, err := p.HGetAll( mk)
 	if err != nil {
 		fmt.Printf("hgetall %v\n", err)
 		return
@@ -33,15 +33,15 @@ func TestNewPool(t *testing.T) {
 		fmt.Printf("idx[%d] %s = %v\n", idx, string(bts), reply[idx])
 	}
 
-	r, err := p.HIncrBy(0, mk, "key_1", 1000000)
+	r, err := p.HIncrBy( mk, "key_1", 1000000)
 	fmt.Printf("hincrby %v-%v\n", r, err)
 
 
-	r2, err := p.HGet(0, mk, "key_1")
+	r2, err := p.HGet( mk, "key_1")
 	fmt.Printf("hget %v-%v\n", r2, err)
 }
 
-//
+// 读写分离使用
 func TestRwPool(t *testing.T) {
 	return
 	wop := Option{
@@ -66,12 +66,12 @@ func TestRwPool(t *testing.T) {
 	for i:=10; i<15; i++ {
 		key := fmt.Sprintf("key_%d", i)
 		//val := fmt.Sprintf("val_%d", i)
-		p.HSet(0, mk, key, i)
+		p.HSet( mk, key, i)
 		fmt.Printf("hset %s->%d\n", key, i)
 	}
 
 
-	reply, err := p.HGetAll(0, mk)
+	reply, err := p.HGetAll( mk)
 	if err != nil {
 		fmt.Printf("hgetall %v\n", err)
 		return

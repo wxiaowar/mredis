@@ -8,8 +8,8 @@ import (
 )
 
 // NOTE!!!! when use this, must close conn, mannul
-// NewRedigoPool base pool, return redigo pool
-func NewRedigoPool(addr, pwd string, maxIdle, maxActive, db int) *redis.Pool {
+// newRedigoPool base pool, return redigo pool
+func newRedigoPool(addr, pwd string, maxIdle, maxActive, db int) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     maxIdle,
 		MaxActive:   maxActive,
@@ -45,10 +45,10 @@ type Option struct {
 func NewRWPool(woption Option, roptions []Option) *RedisPool {
 	rpools := make([]*redis.Pool, len(roptions))
 	for idx, roption := range roptions {
-		rpools[idx] = NewRedigoPool(roption.Address, roption.Password, roption.MaxIdle, roption.MaxActive, roption.DbId)
+		rpools[idx] = newRedigoPool(roption.Address, roption.Password, roption.MaxIdle, roption.MaxActive, roption.DbId)
 	}
 
-	wpool := NewRedigoPool(woption.Address, woption.Password, woption.MaxIdle, woption.MaxActive, woption.DbId)
+	wpool := newRedigoPool(woption.Address, woption.Password, woption.MaxIdle, woption.MaxActive, woption.DbId)
 
 	mp := newMPool(&rw{wpool, rpools})
 	go mp.check(0)
@@ -58,7 +58,7 @@ func NewRWPool(woption Option, roptions []Option) *RedisPool {
 
 // NewPool create pool, which auto close conn
 func NewPool(address, passwd string, maxIdle, maxActive, db int) *RedisPool {
-	rp := NewRedigoPool(address, passwd, maxIdle, maxActive, db)
+	rp := newRedigoPool(address, passwd, maxIdle, maxActive, db)
 	c := &common{Pool: rp}
 	return newMPool(c)
 }
@@ -67,11 +67,11 @@ type common struct {
 	*redis.Pool
 }
 
-func (p *common) getRead(db int) redis.Conn {
+func (p *common) getRead() redis.Conn {
 	return p.Get()
 }
 
-func (p *common) getWrite(db int) redis.Conn {
+func (p *common) getWrite() redis.Conn {
 	return p.Get()
 }
 
@@ -88,17 +88,17 @@ type rw struct {
 	rPools []*redis.Pool
 }
 
-func (p *rw) getRead(db int) redis.Conn {
+func (p *rw) getRead() redis.Conn {
 	rpool := p.rPools
 	rp_size := len(rpool)
 	if rp_size == 0 {
-		return p.getWrite(db)
+		return p.getWrite()
 	}
 
 	return rpool[rand.Int()%rp_size].Get()
 }
 
-func (p *rw) getWrite(db int) redis.Conn {
+func (p *rw) getWrite() redis.Conn {
 	return p.wPool.Get()
 }
 

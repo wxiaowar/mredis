@@ -4,8 +4,8 @@ import "github.com/gomodule/redigo/redis"
 
 type proxy interface {
 	Stat() map[string]interface{}
-	getRead(db int) redis.Conn
-	getWrite(db int) redis.Conn
+	getRead() redis.Conn
+	getWrite() redis.Conn
 	check(int)
 }
 
