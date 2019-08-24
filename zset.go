@@ -63,7 +63,7 @@ func (rp *RedisPool) ZAddOpt(opt string, args ...interface{}) error {
 	return nil
 }
 
-func (rp *RedisPool) ZCount(key interface{}, min, max float64) (count uint32, e error) {
+func (rp *RedisPool) ZCount(key string, min, max float64) (count uint32, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	n, e := redigo.Uint64(scon.Do("ZCOUNT", key, min, max))
@@ -73,7 +73,7 @@ func (rp *RedisPool) ZCount(key interface{}, min, max float64) (count uint32, e 
 	return uint32(n), nil
 }
 
-func (rp *RedisPool) ZCard(key interface{}) (num uint64, e error) {
+func (rp *RedisPool) ZCard(key string) (num uint64, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	return redigo.Uint64(scon.Do("ZCARD", key))
@@ -90,13 +90,13 @@ func (rp *RedisPool) ZRank(key interface{}, id interface{}, asc bool) (rank int6
 	return redigo.Int64(scon.Do(cmd, key, id))
 }
 
-func (rp *RedisPool) ZIncrBy(key interface{}, increment interface{}, id interface{}) (score int64, e error) {
+func (rp *RedisPool) ZIncrBy(key string, increment interface{}, id interface{}) (score int64, e error) {
 	conn := rp.getWrite()
 	defer conn.Close()
 	return redigo.Int64(conn.Do("ZINCRBY", key, increment, id))
 }
 
-func (rp *RedisPool) ZScore(key interface{}, item interface{}) (score int64, e error) {
+func (rp *RedisPool) ZScore(key string, item interface{}) (score int64, e error) {
 	conn := rp.getRead()
 	defer conn.Close()
 	return redigo.Int64(conn.Do("ZSCORE", key, item))
@@ -131,7 +131,7 @@ func (rp *RedisPool) ZRem(args ...interface{}) (affected []interface{}, e error)
 }
 
 //批量获取有序集合的元素的得分
-func (rp *RedisPool) ZMultiScore(key interface{}, items ...interface{}) (scores map[interface{}]int64, e error) {
+func (rp *RedisPool) ZMultiScore(key string, items ...interface{}) (scores map[interface{}]int64, e error) {
 	conn := rp.getRead()
 	defer conn.Close()
 	for _, id := range items {
@@ -155,7 +155,7 @@ func (rp *RedisPool) ZMultiScore(key interface{}, items ...interface{}) (scores 
 }
 
 //ZIsMember判断是否是有序集合的成员
-func (rp *RedisPool) ZIsMember(key interface{}, item interface{}) (isMember bool, e error) {
+func (rp *RedisPool) ZIsMember(key string, item interface{}) (isMember bool, e error) {
 	conn := rp.getRead()
 	defer conn.Close()
 	_, e = redigo.Float64(conn.Do("ZSCORE", key, item))
@@ -170,7 +170,7 @@ func (rp *RedisPool) ZIsMember(key interface{}, item interface{}) (isMember bool
 }
 
 //批量判断是否是有序集合中的元素
-func (rp *RedisPool) ZMultiIsMember(key interface{}, items []interface{}) ([]bool, error) {
+func (rp *RedisPool) ZMultiIsMember(key string, items []interface{}) ([]bool, error) {
 	conn := rp.getRead()
 	defer conn.Close()
 	for idx := range items {
@@ -197,48 +197,48 @@ func (rp *RedisPool) ZMultiIsMember(key interface{}, items []interface{}) ([]boo
 }
 
 //获取SortedSet的ID集合
-func (rp *RedisPool) ZRange(key interface{}, start, end int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRange(key string, start, end int) (reply []interface{}, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	return redigo.Values(scon.Do("ZRANGE", key, start, end))
 }
 
 //获取SortedSet的ID集合
-func (rp *RedisPool) ZRevRange(key interface{}, start, end int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRevRange(key string, start, end int) (reply []interface{}, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	return redigo.Values(scon.Do("ZREVRANGE", key, start, end))
 }
 
 //分页获取SortedSet的ID集合
-func (rp *RedisPool) ZRangePS(key interface{}, cur int, ps int) (reply interface{}, e error) {
+func (rp *RedisPool) ZRangePS(key string, cur int, ps int) (reply interface{}, e error) {
 	start, end := buildRange(cur, ps)
 	return rp.ZRange(key, start, end)
 }
 
-func (rp *RedisPool) ZRevRangePS(key interface{}, cur int, ps int) (reply interface{}, e error) {
+func (rp *RedisPool) ZRevRangePS(key string, cur int, ps int) (reply interface{}, e error) {
 	start, end := buildRange(cur, ps)
 	return rp.ZRevRange(key, start, end)
 }
 
-func (rp *RedisPool) ZRangeWithScores(key interface{}, start, end int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRangeWithScores(key string, start, end int) (reply []interface{}, e error) {
 	return rp.zRangeWithScores(key, start, end, true)
 }
 
-func (rp *RedisPool) ZREVRangeWithScores(key interface{}, start, end int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZREVRangeWithScores(key string, start, end int) (reply []interface{}, e error) {
 	return rp.zRangeWithScores(key, start, end, false)
 }
 
-func (rp *RedisPool) ZREVRangeWithScoresPS(db int, key interface{}, cur int, ps int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZREVRangeWithScoresPS(key string, cur int, ps int) (reply []interface{}, e error) {
 	return rp.zRangeWithScoresPS(key, cur, ps, false)
 }
 
-func (rp *RedisPool) ZRangeWithScoresPS(db int, key interface{}, cur int, ps int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRangeWithScoresPS(key string, cur int, ps int) (reply []interface{}, e error) {
 	return rp.zRangeWithScoresPS(key, cur, ps, true)
 }
 
 //获取SortedSet的ID集合
-func (rp *RedisPool) ZRangeByScore(key interface{}, min, max interface{}, limit int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRangeByScore(key string, min, max interface{}, limit int) (reply []interface{}, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	rmax := fmt.Sprintf("(%d", max)
@@ -251,7 +251,7 @@ func (rp *RedisPool) ZRangeByScore(key interface{}, min, max interface{}, limit 
 	return redigo.Values(scon.Do("ZRANGEBYSCORE", key, min, rmax, "LIMIT", 0, limit))
 }
 
-func (rp *RedisPool) ZRevRangeByScore(key interface{}, min, max interface{}, limit int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRevRangeByScore(key string, min, max interface{}, limit int) (reply []interface{}, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	rmin := fmt.Sprintf("(%d", min)
@@ -269,7 +269,7 @@ func (rp *RedisPool) ZRevRangeByScore(key interface{}, min, max interface{}, lim
 /*
 根据score 获取有序集 ZRANGEBYSCORE min <=score < max  按照score 从小到大排序, ps 获取条数
 */
-func (rp *RedisPool) ZRangeByScoreWithScores(key interface{}, min, max int64, limit int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRangeByScoreWithScores(key string, min, max int64, limit int) (reply []interface{}, e error) {
 	if limit > 0 {
 		rp.zRangeByScoreWithScoresLimit(key, min, max, limit, true)
 	}
@@ -279,7 +279,7 @@ func (rp *RedisPool) ZRangeByScoreWithScores(key interface{}, min, max int64, li
 /*
 根据score 获取有序集 ZREVRANGEBYSCORE min <=score < max  按照score 从大到小排序, ps 获取条数
 */
-func (rp *RedisPool) ZREVRangeByScoreWithScores(key interface{}, min, max int64, limit int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZREVRangeByScoreWithScores(key string, min, max int64, limit int) (reply []interface{}, e error) {
 	if limit > 0 {
 		return rp.zRangeByScoreWithScoresLimit(key, min, max, limit, false)
 	}
@@ -289,19 +289,19 @@ func (rp *RedisPool) ZREVRangeByScoreWithScores(key interface{}, min, max int64,
 /*
 根据score 获取有序集 ZRANGEBYSCORE min <score <= max  按照score 从小到大排序, ps 获取条数
 */
-func (rp *RedisPool) ZRangeByScoreWithScoresPS(key interface{}, min, max int64, cur, ps int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZRangeByScoreWithScoresPS(key string, min, max int64, cur, ps int) (reply []interface{}, e error) {
 	return rp.zRangeByScoreWithScoresPS(key, min, max, cur, ps, true)
 }
 
 /*
 根据score 获取有序集 ZREVRANGEBYSCORE min <=score < max  按照score 从大到小排序, ps 获取条数
 */
-func (rp *RedisPool) ZREVRangeByScoreWithScoresPS(key interface{}, min, max int64, cur, ps int) (reply []interface{}, e error) {
+func (rp *RedisPool) ZREVRangeByScoreWithScoresPS(key string, min, max int64, cur, ps int) (reply []interface{}, e error) {
 	return rp.zRangeByScoreWithScoresPS(key, min, max, cur, ps, false)
 }
 
 //分页获取带积分的SortedSet值
-func (rp *RedisPool) zRangeWithScoresPS(key interface{}, cur int, ps int, asc bool) (reply []interface{}, e error) {
+func (rp *RedisPool) zRangeWithScoresPS(key string, cur int, ps int, asc bool) (reply []interface{}, e error) {
 	if ps > 100 {
 		ps = 100
 	}
@@ -310,7 +310,7 @@ func (rp *RedisPool) zRangeWithScoresPS(key interface{}, cur int, ps int, asc bo
 }
 
 //获取带积分的SortedSet值
-func (rp *RedisPool) zRangeWithScores(key interface{}, start, end int, asc bool) (reply []interface{}, e error) {
+func (rp *RedisPool) zRangeWithScores(key string, start, end int, asc bool) (reply []interface{}, e error) {
 	cmd := "ZRANGE"
 	if !asc {
 		cmd = "ZREVRANGE"
@@ -321,7 +321,7 @@ func (rp *RedisPool) zRangeWithScores(key interface{}, start, end int, asc bool)
 }
 
 //根据积分的SortedSet值
-func (rp *RedisPool) zRangeByScoreWithScoresNoLimit(key interface{}, min, max int64, asc bool) (reply []interface{}, e error) {
+func (rp *RedisPool) zRangeByScoreWithScoresNoLimit(key string, min, max int64, asc bool) (reply []interface{}, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	if asc {
@@ -334,7 +334,7 @@ func (rp *RedisPool) zRangeByScoreWithScoresNoLimit(key interface{}, min, max in
 }
 
 //根据积分的SortedSet值
-func (rp *RedisPool) zRangeByScoreWithScoresLimit(key interface{}, min, max int64, limit int, asc bool) (reply []interface{}, e error) {
+func (rp *RedisPool) zRangeByScoreWithScoresLimit(key string, min, max int64, limit int, asc bool) (reply []interface{}, e error) {
 	scon := rp.getRead()
 	defer scon.Close()
 	if asc {
@@ -347,7 +347,7 @@ func (rp *RedisPool) zRangeByScoreWithScoresLimit(key interface{}, min, max int6
 }
 
 // min <= score < max
-func (rp *RedisPool) zRangeByScoreWithScoresPS(key interface{}, min, max int64, cur, ps int, asc bool) (reply []interface{}, e error) {
+func (rp *RedisPool) zRangeByScoreWithScoresPS(key string, min, max int64, cur, ps int, asc bool) (reply []interface{}, e error) {
 	if ps > 128 {
 		ps = 128
 	}
@@ -367,7 +367,7 @@ func (rp *RedisPool) zRangeByScoreWithScoresPS(key interface{}, min, max int64, 
 /*
 移除有序集 key 中，所有 score 值介于 min 和 max 之间(包括等于 min 或 max )的成员
 */
-func (rp *RedisPool) ZRemRangeByScore(key interface{}, min, max int64) error {
+func (rp *RedisPool) ZRemRangeByScore(key string, min, max int64) error {
 	conn := rp.getWrite()
 	defer conn.Close()
 	_, e := conn.Do("ZREMRANGEBYSCORE", key, min, max)
@@ -382,7 +382,7 @@ keys: 带合并的keys集合 <key> 的列表
 expire: 有效时间 （秒值）
 aggregate: 聚合方式： SUM | MIN | MAX
 */
-func (rp *RedisPool) ZUnionStore(dest_key interface{}, expire int, keys []interface{}, weights []interface{}, aggregate string) error {
+func (rp *RedisPool) ZUnionStore(dest_key string, expire int, keys []interface{}, weights []interface{}, aggregate string) error {
 	if len(keys) != len(weights) || len(keys) <= 0 {
 		return errors.New("invalid numbers of keys and weights")
 	}
