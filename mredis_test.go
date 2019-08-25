@@ -33,7 +33,7 @@ func TestNewPool(t *testing.T) {
 		fmt.Printf("idx[%d] %s = %v\n", idx, string(bts), reply[idx])
 	}
 
-	r, err := p.HIncrBy( mk, "key_1", 1000000)
+	r, err := p.HIncBy( mk, "key_1", 1000000)
 	fmt.Printf("hincrby %v-%v\n", r, err)
 
 

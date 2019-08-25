@@ -5,103 +5,108 @@ import (
 	"errors"
 )
 
-func (rp *RedisPool) HSet(key interface{}, id interface{}, value interface{}) (int, error) {
-	scon := rp.getWrite()
-	defer scon.Close()
+// O(1)
+// n: 1-新值，0-更新已有的值
+func (rp *RedisPool) HSet(key string, id interface{}, value interface{}) (int, error) {
+	con := rp.getWrite()
+	defer con.Close()
 
-	return redigo.Int(scon.Do("HSET", key, id, value))
+	return redigo.Int(con.Do("HSET", key, id, value))
 }
 
-func (rp *RedisPool) HGet(key interface{}, name interface{}) (value interface{}, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
+// O(1)
+func (rp *RedisPool) HGet(key string, name interface{}) (value interface{}, e error) {
+	con := rp.getRead()
+	defer con.Close()
 
-	return scon.Do("HGET", key, name)
-}
+	value, e = con.Do("HGET", key, name)
+	if e != nil {
+		return
+	}
 
-func (rp *RedisPool) HLen(key interface{}) (num int64, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
+	switch reply := value.(type) {
+	case nil:
+		e = redigo.ErrNil
 
-	num, e = redigo.Int64(scon.Do("HLEN", key))
+	case redigo.Error:
+		e = reply
+	}
+
 	return
 }
 
+// o(1)
+func (rp *RedisPool) HLen(key string) (num int64, e error) {
+	con := rp.getRead()
+	defer con.Close()
+
+	return redigo.Int64(con.Do("HLEN", key))
+}
+
 /*
-HMGet针对同一个key获取hashset中的部分元素的值
-
-参数：
-	args: 第一个值必须是key，后续的值都是id
-
-reply=>{val1, val2, val3...}
+ O(n) is the number of fields being requested.
+ args: 第一个值必须是key，后续的值都是id
+ reply=>{val1, val2, val3...}
 */
 func (rp *RedisPool) HMGet(args ...interface{}) (reply []interface{}, e error) {
 	if len(args) < 2 {
 		return
 	}
 
-	scon := rp.getRead()
-	defer scon.Close()
+	con := rp.getRead()
+	defer con.Close()
 
-	return redigo.Values(scon.Do("HMGET", args...))
+	return redigo.Values(con.Do("HMGET", args...))
 }
 
 /*
-HMSet针对同一个key设置hashset中的部分元素的值
-
-参数：
-	args: key item value [item2, value2...] 值对
+ O(N) where N is the number of fields being set
+ args: key item value [item2, value2...] 值对
 */
 func (rp *RedisPool) HMSet(args...interface{}) (e error) {
 	if len(args) < 2 {
 		return
 	}
 
-	scon := rp.getWrite()
-	defer scon.Close()
+	con := rp.getWrite()
+	defer con.Close()
 
-	_, e = scon.Do("HMSET", args...)
+	_, e = con.Do("HMSET", args...)
 	return
 }
 
 /*
-HDel批量删除某个Key中的元素
 	args: 第一个必须是key，后面的都是id
 */
 func (rp *RedisPool) HDel(args ...interface{}) (int, error) {
-	if len(args) <= 1 {
+	if len(args) < 2 {
 		return 0, nil
 	}
 
-	scon := rp.getWrite()
-	defer scon.Close()
+	con := rp.getWrite()
+	defer con.Close()
 
-	return redigo.Int(scon.Do("HDEL", args...))
+	return redigo.Int(con.Do("HDEL", args...))
 }
 
-func (rp *RedisPool) HIncrBy(key interface{}, field interface{}, increment int64) (reply int64, e error) {
-	scon := rp.getWrite()
-	defer scon.Close()
+func (rp *RedisPool) HIncBy(key string, field interface{}, increment int64) (reply int64, e error) {
+	con := rp.getWrite()
+	defer con.Close()
 
-	return redigo.Int64(scon.Do("HINCRBY", key, field, increment))
+	return redigo.Int64(con.Do("HINCRBY", key, field, increment))
 }
 
 /*
-HGetAll针对同一个key获取hashset中的所有元素的值
-
 reply=>{key1, val1, key2, val2, ...}
 */
-func (rp *RedisPool) HGetAll(key interface{}) (reply []interface{}, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
+func (rp *RedisPool) HGetAll(key string) (reply []interface{}, e error) {
+	con := rp.getRead()
+	defer con.Close()
 
-	return redigo.Values(scon.Do("HGETALL", key))
+	return redigo.Values(con.Do("HGETALL", key))
 }
 
 /*
-HSet批量设置HashSet中的值
-
-	db: 数据库表ID
 	args: 必须是<key,id,value>的列表
 */
 func (rp *RedisPool) HMultiSet(args ...interface{}) (e error) {
@@ -131,15 +136,10 @@ func (rp *RedisPool) HMultiSet(args ...interface{}) (e error) {
 }
 
 /*
-HMultiGet批量获取HashSet中多个key中ID的值
-
-参数：
-	db: 数据库表ID
 	args: 必须是<key,id>的列表
-返回值：
-	values: 一个两层的map，第一层的key是参数中的key，第二层的key是参数中的id
+	reply: 一个两层的map，第一层的key是参数中的key，第二层的key是参数中的id
 */
-func (rp *RedisPool) HMultiGet(db int, args ...interface{}) (reply map[interface{}]map[interface{}]interface{}, e error) {
+func (rp *RedisPool) HMultiGet(args ...interface{}) (reply map[interface{}]map[interface{}]interface{}, e error) {
 	if len(args)%2 != 0 {
 		return nil, errors.New("invalid arguments number")
 	}

@@ -4,7 +4,7 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-func (rp *RedisPool) Exists(key interface{}) (bool, error) {
+func (rp *RedisPool) Exists(key string) (bool, error) {
 	conn := rp.getRead()
 	defer conn.Close()
 	return redigo.Bool(conn.Do("EXISTS", key))
@@ -20,7 +20,7 @@ func (rp *RedisPool) Del(key ...interface{}) (int, error) {
 /*
 设置key的有效时间,返回值不等于1，表示键不存在
 */
-func (rp *RedisPool) Expire(expire int, key interface{}) (int, error) {
+func (rp *RedisPool) Expire(expire int, key string) (int, error) {
 	conn := rp.getWrite()
 	defer conn.Close()
 	return redigo.Int(conn.Do("EXPIRE", key, expire))
@@ -35,7 +35,7 @@ func (rp *RedisPool) Expire(expire int, key interface{}) (int, error) {
 
 	不能存在或者没办法设置，返回0
 */
-func (rp *RedisPool) Expireat(expireat int64, key interface{}) (ret int, e error) {
+func (rp *RedisPool) Expireat(expireat int64, key string) (ret int, e error) {
 	conn := rp.getWrite()
 	defer conn.Close()
 	return redigo.Int(conn.Do("EXPIREAT", key, expireat))
@@ -124,7 +124,7 @@ func (rp *RedisPool) KeyScanWithPattern(cursor string, pattern string) (r ScanRe
 /*
 获取key的有效时间
 */
-func (rp *RedisPool) TTL(key interface{}) (expire int, e error) {
+func (rp *RedisPool) TTL(key string) (expire int, e error) {
 	conn := rp.getWrite()
 	defer conn.Close()
 	return redigo.Int(conn.Do("TTL", key))
