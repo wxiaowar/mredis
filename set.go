@@ -1,122 +1,78 @@
 package mredis
 
 import (
-	"errors"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
 // args : key, val1, val2, val3....
-func (rp *RedisPool) SAdd(args ...interface{}) (int64, error) {
-	scon := rp.getWrite()
-	defer scon.Close()
-	return redigo.Int64(scon.Do("SADD", args...))
+func (rp *RedisPool) SAdd(args ...interface{}) (e error) {
+	conn := rp.getConn()
+	defer conn.Close()
+
+	_, e = conn.Do("SADD", args...)
+	return
+}
+
+// args : key, val1, val2, val3....
+// return the values count which be added to set
+func (rp *RedisPool) SAddWithReturn(args ...interface{}) (int64, error) {
+	conn := rp.getConn()
+	defer conn.Close()
+
+	return redigo.Int64(conn.Do("SADD", args...))
 }
 
 // args : key, val1, val2, val3...
-func (rp *RedisPool) SRem(args ...interface{}) (int64, error) {
-	scon := rp.getWrite()
-	defer scon.Close()
-	return redigo.Int64(scon.Do("SREM", args...))
+func (rp *RedisPool) SRem(args ...interface{}) (e error) {
+	conn := rp.getConn()
+	defer conn.Close()
+
+	_, e = conn.Do("SREM", args...)
+	return
+}
+
+// args : key, val1, val2, val3...
+// return the values count be removed form set
+func (rp *RedisPool) SRemWithReturn(args ...interface{}) (int64, error) {
+	conn := rp.getConn()
+	defer conn.Close()
+
+	return redigo.Int64(conn.Do("SREM", args...))
 }
 
 func (rp *RedisPool) SIsMember(key interface{}, value interface{}) (isMember bool, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
-	return redigo.Bool(scon.Do("SISMEMBER", key, value))
+	conn := rp.getConn()
+	defer conn.Close()
+
+	return redigo.Bool(conn.Do("SISMEMBER", key, value))
 }
 
 /*
 SMembers获取某个key下的所有元素
-
-参数：
-	values: 必须是数组的引用
 */
-func (rp *RedisPool) SMembers(key interface{}) (values []interface{}, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
-	return redigo.Values(scon.Do("SMEMBERS", key))
+func (rp *RedisPool) SMembers(key interface{}) *Reply {
+	conn := rp.getConn()
+	defer conn.Close()
+
+	return reply(conn.Do("SMEMBERS", key))
 }
 
 /*
 SCard获取某个key下的元素数量
-
-参数：
-	values: 必须是数组的引用
 */
 func (rp *RedisPool) SCard(key interface{}) (count int64, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
-	return redigo.Int64(scon.Do("SCARD", key))
+	conn := rp.getConn()
+	defer conn.Close()
+
+	return redigo.Int64(conn.Do("SCARD", key))
 }
 
 /*
 SRandMembers获取某个key下的随机count 个元素
-
-参数：
-	values: 必须是数组的引用
 */
-func (rp *RedisPool) SRandMembers(key interface{}, count int) (values []interface{}, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
-	return redigo.Values(scon.Do("SRANDMEMBER", key, count))
-}
+func (rp *RedisPool) SRandMembers(key interface{}, count int) *Reply {
+	conn := rp.getConn()
+	defer conn.Close()
 
-/*
-批量添加到set类型的表中
-
-	db: 数据库表ID
-	args: 必须是<key,id>的列表
-*/
-func (rp *RedisPool) SMultiAdd(args ...interface{}) error {
-	if len(args)%2 != 0 {
-		return errors.New("invalid arguments number")
-	}
-
-	fcon := rp.getWrite()
-	defer fcon.Close()
-	if e := fcon.Send("MULTI"); e != nil {
-		return e
-	}
-
-	for i := 0; i < len(args); i += 2 {
-		if e := fcon.Send("SADD", args[i], args[i+1]); e != nil {
-			fcon.Send("DISCARD")
-			return e
-		}
-	}
-	if _, e := fcon.Do("EXEC"); e != nil {
-		fcon.Send("DISCARD")
-		return e
-	}
-	return nil
-}
-
-/*
-批量删除set类型表中的元素
-
-	db: 数据库表ID
-	args: 必须是<key,id>的列表
-*/
-func (rp *RedisPool) SMultiRem(args ...interface{}) error {
-	if len(args)%2 != 0 {
-		return errors.New("invalid arguments number")
-	}
-
-	fcon := rp.getWrite()
-	defer fcon.Close()
-	if e := fcon.Send("MULTI"); e != nil {
-		return e
-	}
-
-	for i := 0; i < len(args); i += 2 {
-		if e := fcon.Send("SREM", args[i], args[i+1]); e != nil {
-			fcon.Send("DISCARD")
-			return e
-		}
-	}
-	if _, e := fcon.Do("EXEC"); e != nil {
-		fcon.Send("DISCARD")
-		return e
-	}
-	return nil
+	return reply(conn.Do("SRANDMEMBER", key, count))
 }

@@ -5,61 +5,70 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-func (rp *RedisPool) Get(key interface{}) (value interface{}, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
-	return scon.Do("GET", key)
+func (rp *RedisPool) Get(key interface{}) *Reply {
+	c := rp.getConn()
+	defer c.Close()
+
+	return reply(c.Do("GET", key))
 }
 
 func (rp *RedisPool) Set(key interface{}, value interface{}) (e error) {
-	scon := rp.getWrite()
-	defer scon.Close()
-	_, e = scon.Do("SET", key, value)
+	c := rp.getConn()
+	defer c.Close()
+
+	_, e = c.Do("SET", key, value)
 	return
 }
 
 func (rp *RedisPool) SetEx(key interface{}, seconds int, value interface{}) (e error) {
-	scon := rp.getWrite()
-	defer scon.Close()
-	_, e = scon.Do("SETEX", key, seconds, value)
+	c := rp.getConn()
+	defer c.Close()
+
+	_, e = c.Do("SETEX", key, seconds, value)
 	return
-
-}
-func (rp *RedisPool) SetNx(key interface{}, value interface{}) (val int, e error) {
-	scon := rp.getWrite()
-	defer scon.Close()
-	return redigo.Int(scon.Do("SETNX", key, value))
 }
 
-func (rp *RedisPool) Incr(key interface{}) (int64, error) {
-	scon := rp.getWrite()
-	defer scon.Close()
-	return redigo.Int64(scon.Do("INCR", key))
+func (rp *RedisPool) SetNx(key interface{}, value interface{}) bool {
+	c := rp.getConn()
+	defer c.Close()
+
+	val, _ := redigo.Int(c.Do("SETNX", key, value))
+	return val == SetNxSuccess
 }
 
-func (rp *RedisPool) IncrBy(key interface{}, value interface{}) (int64, error) {
-	scon := rp.getWrite()
-	defer scon.Close()
-	return redigo.Int64(scon.Do("INCRBY", key, value))
+func (rp *RedisPool) Incr(key interface{}) *Reply {
+	c := rp.getConn()
+	defer c.Close()
+
+	return reply(c.Do("INCR", key))
 }
 
-// 批量获取
-func (rp *RedisPool) MGet(keys ...interface{}) (value []interface{}, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
-	return redigo.Values(scon.Do("MGET", keys...))
+func (rp *RedisPool) IncrBy(key interface{}, value interface{}) *Reply {
+	c := rp.getConn()
+	defer c.Close()
+
+	return reply(c.Do("INCRBY", key, value))
+}
+
+// 批量获取 keys = k1,k2,k3....
+func (rp *RedisPool) MGet(keys ...interface{}) *Reply {
+	c := rp.getConn()
+	defer c.Close()
+
+	return reply(c.Do("MGET", keys...))
 }
 
 /*
 批量设置
-< key value > 序列
+kvs : < key value > 序列
 */
 func (rp *RedisPool) MSet(kvs ...interface{}) (e error) {
 	if len(kvs)%2 != 0 {
 		return errors.New("invalid arguments number")
 	}
-	scon := rp.getWrite()
-	defer scon.Close()
-	_, e = scon.Do("MSET", kvs...)
+	c := rp.getConn()
+	defer c.Close()
+
+	_, e = c.Do("MSET", kvs...)
 	return
 }

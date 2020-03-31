@@ -9,14 +9,17 @@ import redigo "github.com/gomodule/redigo/redis"
 /*
 	添加几个
 */
-func (rp *RedisPool) GeoAdd(db int, key interface{}, values ...interface{}) (int64, error) {
-	args := make([]interface{}, len(values)+1)
-	args[0] = key
-	copy(args[1:], values)
-	scon := rp.getWrite()
+func (rp *RedisPool) GeoAdd(key string, values ...interface{}) (int64, error) {
+	args := make([]interface{}, 0, len(values)+1)
+	args = append(args, key)
+	args = append(args, values...)
 
-	defer scon.Close()
-	return redigo.Int64(scon.Do("GEOADD", args...))
+	//args[0] = key
+	//copy(args[1:], values)
+	con := rp.getConn()
+	defer con.Close()
+
+	return redigo.Int64(con.Do("GEOADD", args...))
 }
 
 /*
@@ -27,9 +30,10 @@ func (rp *RedisPool) GeoAdd(db int, key interface{}, values ...interface{}) (int
 	ft for feet.
 */
 func (rp *RedisPool) GeoDist(key interface{}, mem1, mem2 uint32, unit string) (distance float64, e error) {
-	scon := rp.getRead()
-	defer scon.Close()
-	return redigo.Float64(scon.Do("GEODIST", key, mem1, mem2, unit))
+	con := rp.getConn()
+	defer con.Close()
+
+	return redigo.Float64(con.Do("GEODIST", key, mem1, mem2, unit))
 }
 
 /*func GeoHash()*/

@@ -5,17 +5,15 @@ import (
 )
 
 func (rp *RedisPool) Publish(channel, value interface{}) error {
-	conn := rp.getWrite()
+	conn := rp.getConn()
 	defer conn.Close()
+
 	_, err := conn.Do("PUBLISH", channel, value)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 //must close manual
 func (rp *RedisPool) GetPubSubConn() (*redigo.PubSubConn, error) {
-	conn := rp.getRead()
-	return &redigo.PubSubConn{conn}, nil
+	c:= rp.getConn()
+	return &redigo.PubSubConn{c}, nil
 }
