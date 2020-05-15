@@ -8,7 +8,7 @@ import (
 var p *RedisPool
 
 func init() {
-	p = NewRedisPool("redis://user:1234@127.0.0.1:16379/0")
+	p, _ = NewRedisPool("redis://user:1234@127.0.0.1:16379/0")
 }
 
 // 单连接
