@@ -1,4 +1,4 @@
-module github.com/mredis
+module github.com/wxiaowar/mredis
 
 go 1.14
 
