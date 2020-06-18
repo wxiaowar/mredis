@@ -1,6 +1,9 @@
 package mredis
 
-import "github.com/gomodule/redigo/redis"
+import (
+	"errors"
+	"github.com/gomodule/redigo/redis"
+)
 
 const (
 	SetNxFail = 0
@@ -89,6 +92,26 @@ func (r *Reply) Int64Map() (map[string]int64, error) {
 
 func (r *Reply) StringMap() (map[string]string, error) {
 	return redis.StringMap(r.Raw, r.Err)
+}
+
+func (r *Reply)BytesMap()(map[string][]byte, error) {
+	values, err := redis.Values(r.Raw, r.Err)
+	if err != nil {
+		return nil, err
+	}
+	if len(values)%2 != 0 {
+		return nil, errors.New("redigo: StringMap expects even number of values result")
+	}
+	m := make(map[string][]byte, len(values)/2)
+	for i := 0; i < len(values); i += 2 {
+		key, okKey := values[i].([]byte)
+		value, okValue := values[i+1].([]byte)
+		if !okKey || !okValue {
+			return nil, errors.New("redigo: StringMap key not a bulk string value")
+		}
+		m[string(key)] = value
+	}
+	return m, nil
 }
 
 func (r *Reply) CallFunc(f func(raw interface{}) error) error {
